@@ -95,19 +95,24 @@ class Fruit {
     constructor(x, y, size, type) {
         this.x = x;
         this.y = y;
-        this.size = size;
+        // Increase base size by 30%
+        this.size = size * 1.3;
         this.type = type;
         this.isBomb = type === "bomb";
         this.emoji = this.isBomb ? bombEmoji : fruitTypes[type];
         this.velocity = {
-            x: Math.random() * 6 - 3, // More horizontal movement
-            y: Math.random() * -20 - 15  // Increased upward velocity for higher reach
+            // Reduce horizontal speed by 40%
+            x: (Math.random() * 6 - 3) * 0.6,
+            // Increase upward velocity by 20% for higher reach but make it slower overall
+            y: (Math.random() * -25 - 20) * 0.6
         };
-        this.gravity = 0.2 + Math.random() * 0.2; // More varied gravity
+        // Reduce gravity for slower falling and higher arcs
+        this.gravity = (0.2 + Math.random() * 0.2) * 0.8;
         this.sliced = false;
         this.slicedPieces = null;
         this.rotation = Math.random() * Math.PI * 2;
-        this.rotationSpeed = (Math.random() - 0.5) * 0.2; // Faster rotation
+        // Reduce rotation speed by 30%
+        this.rotationSpeed = (Math.random() - 0.5) * 0.14;
         this.opacity = 1;
         this.scale = 1;
         this.pulseDirection = 1;
@@ -641,7 +646,7 @@ function createSeparatorLine() {
 }
 
 // Adjust spawn rate based on screen size
-const spawnInterval = Math.max(500, Math.min(1000, window.innerWidth / 2));
+const spawnInterval = Math.max(1000, Math.min(1800, window.innerWidth / 1.5));
 setInterval(spawnFruit, spawnInterval);
 
 // Create separator line
