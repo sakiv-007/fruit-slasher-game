@@ -275,7 +275,8 @@ function spawnFruit() {
             
             const x = startX + (spawnWidth * (i / burstCount)) + (Math.random() * 200 - 100);
             const y = canvas.height;
-            const size = 60 + Math.random() * 20; // Varied sizes
+            // Use a consistent, larger size for all fruits (was: 60 + Math.random() * 20)
+            const size = 100; 
             
             // Randomly select a fruit type or bomb
             const type = Math.random() < 0.15 ? "bomb" : Math.floor(Math.random() * fruitTypes.length);
