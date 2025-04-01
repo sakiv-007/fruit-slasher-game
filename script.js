@@ -14,50 +14,80 @@ let lastTime = 0;
 const backgroundImage = new Image();
 backgroundImage.src = "assets/bg.png";
 
-const fruitImages = {
-    apple: "assets/apple.png",
-    banana: "assets/banana.png",
-    orange: "assets/orange.png",
-    watermelon: "assets/watermelon.png",
-    bomb: "assets/bomb.png"
-};
+// Fruit emojis and bomb symbol
+const fruitTypes = ['🍎', '🍊', '🍇', '🍓', '🍐', '🍑', '🍉', '❤️', '🫐'];
+const bombEmoji = '💣';
 
-// Juice colors for particles
-const juiceColors = {
-    apple: "#ff0000",
-    banana: "#ffff00",
-    orange: "#ffa500",
-    watermelon: "#ff6b81",
-    bomb: "#333333"
-};
+// Particle colors for juice effects
+const particleColors = ['#FF4136', '#FFDC00', '#2ECC40', '#FF851B', '#7FDBFF'];
+
+// Helper function to convert hex to RGB for particle effects
+function hexToRgb(hex) {
+    // Remove the # if present
+    hex = hex.replace(/^#/, '');
+    
+    // Parse the hex values
+    const bigint = parseInt(hex, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    
+    return `${r}, ${g}, ${b}`;
+}
 
 class Particle {
     constructor(x, y, color) {
         this.x = x;
         this.y = y;
-        this.size = Math.random() * 5 + 2;
+        this.size = Math.random() * 8 + 2; // Larger particles
         this.color = color;
-        this.speedX = Math.random() * 6 - 3;
-        this.speedY = Math.random() * 6 - 3;
-        this.gravity = 0.1;
+        this.speedX = Math.random() * 10 - 5; // Faster horizontal movement
+        this.speedY = Math.random() * 10 - 5; // Faster vertical movement
+        this.gravity = 0.15;
         this.life = 100;
+        this.shape = Math.random() > 0.7 ? 'square' : 'circle'; // Random shapes for variety
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.2;
     }
 
     update(deltaTime) {
         this.speedY += this.gravity;
         this.x += this.speedX * (deltaTime / 16);
         this.y += this.speedY * (deltaTime / 16);
-        this.life -= 2;
-        if (this.size > 0.2) this.size -= 0.1;
+        this.life -= 1.5;
+        this.rotation += this.rotationSpeed;
+        
+        // Gradually reduce size
+        if (this.size > 0.5) {
+            this.size -= 0.08 * (deltaTime / 16);
+        }
     }
 
     draw() {
-        ctx.fillStyle = this.color;
-        ctx.globalAlpha = this.life / 100;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        
+        // Add glow effect
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 5;
+        
+        // Use rgba for better color control
+        const rgbaColor = `rgba(${hexToRgb(this.color)}, ${this.life / 100})`;
+        ctx.fillStyle = rgbaColor;
+        
+        if (this.shape === 'square') {
+            // Draw a square
+            const halfSize = this.size / 2;
+            ctx.fillRect(-halfSize, -halfSize, this.size, this.size);
+        } else {
+            // Draw a circle
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        ctx.restore();
     }
 }
 
@@ -65,24 +95,50 @@ class Fruit {
     constructor(x, y, size, type) {
         this.x = x;
         this.y = y;
-        this.size = size * 2;
+        this.size = size;
         this.type = type;
         this.isBomb = type === "bomb";
+        this.emoji = this.isBomb ? bombEmoji : fruitTypes[type];
         this.velocity = {
-            x: Math.random() * 4 - 2,
-            y: Math.random() * -12 - 6
+            x: Math.random() * 6 - 3, // More horizontal movement
+            y: Math.random() * -20 - 15  // Increased upward velocity for higher reach
         };
-        this.gravity = 0.2 + Math.random() * 0.1;
+        this.gravity = 0.2 + Math.random() * 0.2; // More varied gravity
         this.sliced = false;
         this.slicedPieces = null;
         this.rotation = Math.random() * Math.PI * 2;
-        this.rotationSpeed = (Math.random() - 0.5) * 0.1;
-        this.image = new Image();
-        this.image.src = fruitImages[type];
+        this.rotationSpeed = (Math.random() - 0.5) * 0.2; // Faster rotation
         this.opacity = 1;
+        this.scale = 1;
+        this.pulseDirection = 1;
+        this.pulseSpeed = 0.01 + Math.random() * 0.02;
+        this.glowSize = 0;
+        this.glowDirection = 1;
     }
 
     draw() {
+        // Add glow effect for unsliced fruits
+        if (!this.sliced) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            
+            // Draw glow effect
+            if (this.isBomb) {
+                ctx.shadowColor = 'rgba(255, 0, 0, 0.7)';
+            } else {
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
+            }
+            ctx.shadowBlur = 10 + this.glowSize;
+            
+            // Draw the emoji
+            ctx.font = `${this.size * this.scale}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.rotate(this.rotation);
+            ctx.fillText(this.emoji, 0, 0);
+            ctx.restore();
+        }
+        
         if (this.sliced && this.slicedPieces) {
             // Draw sliced pieces
             this.slicedPieces.forEach(piece => {
@@ -90,17 +146,14 @@ class Fruit {
                 ctx.translate(this.x + piece.offsetX, this.y + piece.offsetY);
                 ctx.rotate(piece.rotation);
                 ctx.globalAlpha = this.opacity;
-                ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
+                ctx.font = `${this.size * 0.8}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, 0, 0);
                 ctx.globalAlpha = 1;
                 ctx.restore();
             });
-        } else if (!this.sliced) {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.rotation);
-            ctx.drawImage(this.image, -this.size / 2, -this.size / 2, this.size, this.size);
-            ctx.restore();
-        }
+        }        
     }
 
     update(deltaTime) {
@@ -109,17 +162,41 @@ class Fruit {
         this.velocity.y += this.gravity;
         this.rotation += this.rotationSpeed;
         
+        // Pulsing effect for unsliced fruits
+        if (!this.sliced) {
+            // Update scale for pulsing effect
+            this.scale += this.pulseDirection * this.pulseSpeed * (deltaTime / 16);
+            if (this.scale > 1.1) {
+                this.scale = 1.1;
+                this.pulseDirection = -1;
+            } else if (this.scale < 0.9) {
+                this.scale = 0.9;
+                this.pulseDirection = 1;
+            }
+            
+            // Update glow effect
+            this.glowSize += this.glowDirection * 0.2 * (deltaTime / 16);
+            if (this.glowSize > 5) {
+                this.glowSize = 5;
+                this.glowDirection = -1;
+            } else if (this.glowSize < 0) {
+                this.glowSize = 0;
+                this.glowDirection = 1;
+            }
+        }
+        
         if (this.sliced && this.slicedPieces) {
-            this.slicedPieces[0].offsetX -= 1.5 * (deltaTime / 16);
-            this.slicedPieces[0].offsetY -= 1.5 * (deltaTime / 16);
-            this.slicedPieces[1].offsetX += 1.5 * (deltaTime / 16);
-            this.slicedPieces[1].offsetY += 1.5 * (deltaTime / 16);
-            this.slicedPieces[0].rotation += 0.08;
-            this.slicedPieces[1].rotation -= 0.08;
+            // More dynamic movement for sliced pieces
+            this.slicedPieces[0].offsetX -= (2.0 + Math.random() * 0.5) * (deltaTime / 16);
+            this.slicedPieces[0].offsetY -= (2.0 + Math.random() * 0.5) * (deltaTime / 16);
+            this.slicedPieces[1].offsetX += (2.0 + Math.random() * 0.5) * (deltaTime / 16);
+            this.slicedPieces[1].offsetY += (2.0 + Math.random() * 0.5) * (deltaTime / 16);
+            this.slicedPieces[0].rotation += 0.1 * (deltaTime / 16);
+            this.slicedPieces[1].rotation -= 0.1 * (deltaTime / 16);
             
             // Fade out sliced pieces
             if (this.opacity > 0) {
-                this.opacity -= 0.005;
+                this.opacity -= 0.008 * (deltaTime / 16);
             }
         }
     }
@@ -128,16 +205,18 @@ class Fruit {
         if (!this.sliced) {
             this.sliced = true;
             
-            // Create sliced pieces effect
+            // Create sliced pieces effect with more dynamic initial positions
             this.slicedPieces = [
-                { offsetX: -10, offsetY: -10, rotation: this.rotation - 0.5 },
-                { offsetX: 10, offsetY: 10, rotation: this.rotation + 0.5 }
+                { offsetX: -15, offsetY: -15, rotation: this.rotation - 0.8 },
+                { offsetX: 15, offsetY: 15, rotation: this.rotation + 0.8 }
             ];
             
-            // Create juice particles
-            const juiceColor = juiceColors[this.type] || "#ff0000";
-            for (let i = 0; i < 15; i++) {
-                particles.push(new Particle(this.x, this.y, juiceColor));
+            // Create juice particles with random colors from the palette
+            const particleColor = particleColors[Math.floor(Math.random() * particleColors.length)];
+            
+            // Create more particles for a more dramatic effect
+            for (let i = 0; i < 25; i++) {
+                particles.push(new Particle(this.x, this.y, particleColor));
             }
             
             // Add score
@@ -145,7 +224,7 @@ class Fruit {
                 score += 1;
                 document.getElementById("score").innerText = "Score: " + score;
                 
-                // Show score popup
+                // Show score popup with enhanced effect
                 showScorePopup(this.x, this.y);
             }
         }
@@ -155,10 +234,22 @@ class Fruit {
 function showScorePopup(x, y) {
     const popup = document.createElement("div");
     popup.className = "score-popup";
-    popup.innerText = "+1";
-    popup.style.left = x + "px";
-    popup.style.top = y + "px";
+    
+    // Randomly select a positive emoji for variety
+    const scoreEmojis = ['+1 ✨', '+1 🔥', '+1 ⚡', '+1 💯', '+1 🎯'];
+    popup.innerText = scoreEmojis[Math.floor(Math.random() * scoreEmojis.length)];
+    
+    // Random slight position offset for more dynamic feel
+    const offsetX = (Math.random() - 0.5) * 40;
+    const offsetY = (Math.random() - 0.5) * 20;
+    
+    popup.style.left = (x + offsetX) + "px";
+    popup.style.top = (y + offsetY) + "px";
     document.body.appendChild(popup);
+    
+    // Random color for each popup
+    const colors = ['#FF4136', '#FFDC00', '#2ECC40', '#FF851B', '#7FDBFF', '#F012BE'];
+    popup.style.color = colors[Math.floor(Math.random() * colors.length)];
     
     setTimeout(() => {
         popup.remove();
@@ -167,12 +258,26 @@ function showScorePopup(x, y) {
 
 function spawnFruit() {
     if (gameOver) return;
-    const x = Math.random() * canvas.width;
-    const y = canvas.height;
-    const size = 60;
-    const types = ["apple", "banana", "orange", "watermelon"];
-    const type = Math.random() < 0.2 ? "bomb" : types[Math.floor(Math.random() * types.length)];
-    fruits.push(new Fruit(x, y, size, type));
+    
+    // Create a burst of fruits for more dynamic gameplay
+    const burstCount = Math.floor(Math.random() * 3) + 1; // 1-3 fruits at once
+    const spawnWidth = canvas.width * 0.8;
+    const startX = canvas.width * 0.1;
+    
+    for (let i = 0; i < burstCount; i++) {
+        setTimeout(() => {
+            if (gameOver) return;
+            
+            const x = startX + (spawnWidth * (i / burstCount)) + (Math.random() * 200 - 100);
+            const y = canvas.height;
+            const size = 60 + Math.random() * 20; // Varied sizes
+            
+            // Randomly select a fruit type or bomb
+            const type = Math.random() < 0.15 ? "bomb" : Math.floor(Math.random() * fruitTypes.length);
+            
+            fruits.push(new Fruit(x, y, size, type));
+        }, i * (Math.random() * 200 + 50)); // Random delay between fruits in burst
+    }
 }
 
 // Blade trail effect
@@ -444,24 +549,27 @@ function restartGame() {
     animate();
 }
 
-// Add CSS for score popup
+// Add CSS for score popup with enhanced effects
 const style = document.createElement('style');
 style.textContent = `
 .score-popup {
     position: absolute;
     color: #fff;
-    font-size: 24px;
+    font-size: 28px;
     font-weight: bold;
     pointer-events: none;
     animation: popup 1s ease-out;
-    text-shadow: 0 0 5px #000;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.7),
+                 0 0 15px rgba(255, 255, 255, 0.5);
     z-index: 1000;
+    letter-spacing: 1px;
 }
 
 @keyframes popup {
-    0% { transform: scale(0.5); opacity: 0; }
-    50% { transform: scale(1.5); opacity: 1; }
-    100% { transform: scale(1); opacity: 0; transform: translateY(-50px); }
+    0% { transform: scale(0.5) rotate(-5deg); opacity: 0; }
+    20% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+    50% { transform: scale(1.5) rotate(-2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg) translateY(-80px); opacity: 0; }
 }
 
 #gameCanvas {
